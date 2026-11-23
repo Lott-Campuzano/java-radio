@@ -1,0 +1,29 @@
+# ============================================================
+#  JAVA RADIO · Blueprint de Render
+#  Proceso Node persistente: necesario para sesiones en memoria
+#  y streaming de audio con Range.
+#  Autor: Lott Campuzano · https://github.com/Lott-Campuzano
+# ============================================================
+services:
+  - type: web
+    name: java-radio
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: SOURCE
+        value: drive
+      - key: HOST
+        value: 0.0.0.0
+      - key: SECURE_COOKIES
+        value: "1"
+      # Render genera un secreto aleatorio y estable.
+      - key: SESSION_SECRET
+        generateValue: true
+      # Se rellena en el panel de Render al crear el Blueprint.
+      - key: DRIVE_FOLDER_ID
+        sync: false

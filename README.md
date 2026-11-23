@@ -299,14 +299,51 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ## Desplegarla
 
-Necesita un servidor Node con procesos vivos y streaming (Render, Railway,
-Fly.io, un VPS…). **No encaja en funciones serverless** como Vercel/Netlify
-Functions por las sesiones en memoria y el proxy de audio con `Range`.
+El proyecto necesita un proceso Node vivo: catálogo en memoria, sesiones y
+streaming de audio con `Range`. **Render, Railway, Fly.io o un VPS** son la
+opción recomendada. Las funciones serverless (Vercel/Netlify) pueden servir la
+web y la API, pero tienen límites de duración y tamaño de respuesta que cortan
+canciones largas y no conservan bien las sesiones en memoria.
 
-1. Sube el proyecto (sin `.env` ni `musica/` si usas Drive).
-2. Define las variables de entorno.
-3. `HOST=0.0.0.0`, `SECURE_COOKIES=1` y un `SESSION_SECRET` fijo.
-4. `npm start`.
+### El `.env` no se sube (y está bien)
+
+`.env` está en `.gitignore` a propósito: contiene configuración y secretos.
+En producción **no se sube el archivo**; se configuran las mismas variables en
+el panel de la plataforma. Si faltan, el servidor arranca en modo local, la
+carpeta `musica/` del repo está vacía y la radio se queda sin pistas.
+
+### Vercel (si ya está desplegada allí)
+
+1. Proyecto → **Settings → Environment Variables**.
+2. Añade en **Production** (y en Preview si quieres):
+   - `DRIVE_FOLDER_ID` = `12V93aLPixMP6QjPKCsDJ3lyvLiChxXIK`
+   - `SOURCE` = `drive`
+   - `SESSION_SECRET` = el valor de `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+   - `SECURE_COOKIES` = `1`
+   - No fijes `HOST=127.0.0.1` ni `PORT=4321`: Vercel los gestiona.
+3. **Redeploy**: los cambios de entorno no se aplican al deployment anterior.
+4. Comprueba `https://TU-DOMINIO/api/status`: debe devolver
+   `"mode":"drive"`, `"driveConfigured":true` y `"tracks":58`.
+
+Si el listado aparece pero el audio se corta, muévela a Render: Vercel no es
+una CDN de audio y limita las respuestas de las funciones.
+
+### Render (recomendado)
+
+El repo incluye [`render.yaml`](render.yaml). Crea un **Blueprint** en Render,
+conéctalo al repositorio y rellena `DRIVE_FOLDER_ID` cuando lo pida. El
+Blueprint ya configura `SOURCE=drive`, `HOST=0.0.0.0`, `SECURE_COOKIES=1` y un
+`SESSION_SECRET` aleatorio.
+
+### Variables mínimas
+
+| Variable | Valor |
+|---|---|
+| `DRIVE_FOLDER_ID` | ID o enlace de la carpeta pública |
+| `SOURCE` | `drive` (o `local`) |
+| `SESSION_SECRET` | 64 caracteres aleatorios |
+| `SECURE_COOKIES` | `1` si sirves por HTTPS |
+| `HOST` | `0.0.0.0` en Render/Railway/VPS |
 
 Cada oyente consume ancho de banda del servidor: Drive no es una CDN. Para
 mucha audiencia, pon una caché/CDN delante o sirve desde object storage.
