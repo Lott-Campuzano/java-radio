@@ -1,0 +1,11 @@
+.env
+node_modules/
+musica/*.wav
+musica/*.mp3
+musica/*.m4a
+musica/*.ogg
+musica/*.flac
+musica/*.opus
+musica/*.aac
+!musica/LEEME.txt
+.DS_Store
