@@ -1297,14 +1297,31 @@ async function streamLocal(req, res, entry, range) {
 }
 
 async function streamDrive(req, res, entry, range) {
-  const controller = new AbortController();
-  const guard = setTimeout(() => controller.abort(), 30_000);
-  let upstream;
-  try {
-    upstream = await fetchDriveMedia(entry, range ? { range } : {}, controller.signal);
-  } finally {
-    clearTimeout(guard);
+  // Drive público a veces corta la conexión o devuelve un 5xx pasajero.
+  // Un reintento evita saltar la pista por un fallo de un segundo.
+  let upstream = null;
+  let lastError = null;
+  for (let attempt = 0; attempt < 2 && !upstream; attempt += 1) {
+    const controller = new AbortController();
+    const guard = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const candidate = await fetchDriveMedia(entry, range ? { range } : {}, controller.signal);
+      if (!candidate.ok && candidate.status >= 500 && attempt === 0) {
+        if (candidate.body) await candidate.body.cancel().catch(() => {});
+        lastError = new Error(`Drive HTTP ${candidate.status}`);
+      } else {
+        upstream = candidate;
+      }
+    } catch (error) {
+      lastError = error;
+    } finally {
+      clearTimeout(guard);
+    }
+    if (!upstream && attempt === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
   }
+  if (!upstream) throw lastError || new Error('Drive no respondió.');
 
   if (upstream.status === 416) {
     res.writeHead(416, {
